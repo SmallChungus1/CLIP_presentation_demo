@@ -5,9 +5,12 @@ from PIL import Image
 import os
 from transformers import CLIPModel, CLIPProcessor, AutoTokenizer
 import chromadb
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class ClipInference():
-    def __init__(self, model_name="openai/clip-vit-base-patch32"):
+    def __init__(self, model_name="openai/clip-vit-base-patch32", db_collection="test_collection"):
         if torch.cuda.is_available():
             self.device = torch.device("cuda")
             self.torch_dtype = torch.float16  # fast on CUDA
@@ -17,18 +20,28 @@ class ClipInference():
         else:
             self.device = torch.device("cpu")
             self.torch_dtype = torch.float32
-
-        self.model = CLIPModel.from_pretrained(model_name).to(self.device, dtype=self.torch_dtype)
+        
+        print(f"Using device: {self.device}")
+        self.model = CLIPModel.from_pretrained(
+            model_name,
+            dtype=self.torch_dtype,
+            low_cpu_mem_usage=False,  #avoiding the cannot copy out of meta tensor error?
+            device_map=None,
+            cache_dir=os.getenv("CACHE_DIR")
+        )
+        self.model.to(self.device)
         self.model.eval()
-        self.processor = CLIPProcessor.from_pretrained(model_name)
+
+        self.processor = CLIPProcessor.from_pretrained(model_name, cache_dir=os.getenv("CACHE_DIR"))
+        self.chroma_client = chromadb.PersistentClient(path=f"./{db_collection}")
+        self.collection_name = db_collection
 
     #Compute image/video embeddings and store them locally in chromadb
-    def store_media_embeddings(self, media_dir, collection_name="test_collection"):
-        client = chromadb.Client()
-        if collection_name in [col.name for col in client.list_collections()]:
-            collection = client.get_collection(name=collection_name)
+    def store_media_embeddings(self, media_dir):
+        if self.collection_name in [col.name for col in self.chroma_client.list_collections()]:
+            collection = self.chroma_client.get_collection(name=self.collection_name)
         else:
-            collection = client.create_collection(name=collection_name)
+            collection = self.chroma_client.create_collection(name=self.collection_name)
 
         for filename in os.listdir(media_dir):
             file_path = os.path.join(media_dir, filename)
@@ -46,20 +59,22 @@ class ClipInference():
                 metadatas=[{"filename": filename}],
             )
 
-        print(f"succesfully stored media embeddings to collection {collection_name}")
+        print(f"succesfully stored media embeddings to collection {self.collection_name}")
 
-    def clear_collection(self, collection_name="test_collection"):
-        client = chromadb.Client()
-        if collection_name in [col.name for col in client.list_collections()]:
-            client.delete_collection(name=collection_name)
-            print(f"Collection {collection_name} deleted.")
+    #Image classification function
+    def classify_image(self, image_url):
+        image_features = self.encode_image(image_url)
+        
+    def clear_collection(self):
+        if self.collection_name in [col.name for col in self.chroma_client.list_collections()]:
+            self.chroma_client.delete_collection(name=self.collection_name)
+            print(f"Collection {self.collection_name} deleted.")
         else:
-            print(f"Collection {collection_name} does not exist.")
+            print(f"Collection {self.collection_name} does not exist.")
 
-    def query_media(self, query_text, collection_name="test_collection"):
+    def query_media(self, query_text):
         text_features = self.encode_text(query_text).cpu().numpy()
-        client = chromadb.Client()
-        collection = client.get_collection(name=collection_name)
+        collection = self.chroma_client.get_collection(name=self.collection_name)
         results = collection.query(
             query_embeddings=[text_features],
             n_results=5

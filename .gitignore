@@ -1,3 +1,5 @@
 clipDemoVenv
 demo_data
 __pycache__
+.env
+test_collection
