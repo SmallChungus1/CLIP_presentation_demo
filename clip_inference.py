@@ -7,6 +7,8 @@ from transformers import CLIPModel, CLIPProcessor, AutoTokenizer
 import chromadb
 from dotenv import load_dotenv
 import json
+import requests
+from io import BytesIO
 
 load_dotenv()
 
@@ -66,6 +68,7 @@ class ClipInference():
         print(f"succesfully stored media embeddings to collection {self.collection_name}")
 
     def query_media(self, query_text):
+        #need to be converted to numpy for chromadb
         text_features = self.encode_text(query_text).cpu().numpy()
         results = self.chroma_image_search_collection.query(
             query_embeddings=[text_features],
@@ -88,7 +91,7 @@ class ClipInference():
 
     #Image classification function
     def classify_image(self, image_url):
-        image_features = self.encode_image(image_url)
+        image_features = self.encode_image(image_url).cpu().numpy()
         result = self.chroma_imagenet_embed_collec.query(
             query_embeddings=[image_features],
             n_results=1
@@ -113,7 +116,7 @@ class ClipInference():
 
         #we can pass in url or PIL image object
         if isinstance(image_url_or_obj, str):
-            image = Image.open(image_url_or_obj).convert("RGB")
+            image = Image.open(BytesIO(requests.get(image_url_or_obj).content))
         else:
             image = image_url_or_obj.convert("RGB")
 

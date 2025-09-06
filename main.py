@@ -32,14 +32,10 @@ st.subheader("Image Classification Demo")
 
 user_image_input = st.text_input("Enter image URL:")
 if st.button("Classify Image"):
-    if user_image_input:
-        image_features = clip_inference.encode_image(user_image_input)
-        categories = ["a photo of a cat", "a photo of a dog", "a photo of a bird", "a photo of a car", "a photo of a tree"]
-        category_features = [clip_inference.encode_text(cat) for cat in categories]
-        category_features = torch.stack(category_features)
-        image_features = image_features.unsqueeze(0)
-        similarities = (image_features @ category_features.T).squeeze(0)
-        best_idx = similarities.argmax().item()
-        st.write(f"The image is classified as: {categories[best_idx]}")
-    else:
-        st.write("Please enter a valid image URL.")
+    try:
+        class_name = clip_inference.classify_image(user_image_input)
+        st.write(f"Predicted Class: {class_name}")
+        st.image(user_image_input, caption="Input Image", use_container_width=True)
+    except Exception as e:
+        st.error(f"Error processing image: {e}")
+
