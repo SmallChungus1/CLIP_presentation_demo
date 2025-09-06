@@ -23,7 +23,7 @@ class ClipInference():
         self.processor = CLIPProcessor.from_pretrained(model_name)
 
     #Compute image/video embeddings and store them locally in chromadb
-    def store_media_embeddings(self, media_dir, collection_name="media_collection"):
+    def store_media_embeddings(self, media_dir, collection_name="test_collection"):
         client = chromadb.Client()
         if collection_name in [col.name for col in client.list_collections()]:
             collection = client.get_collection(name=collection_name)
@@ -40,6 +40,7 @@ class ClipInference():
             else:
                 continue
             collection.add(
+                ids=[filename],
                 documents=[file_path],
                 embeddings=[features],
                 metadatas=[{"filename": filename}],
@@ -47,7 +48,24 @@ class ClipInference():
 
         print(f"succesfully stored media embeddings to collection {collection_name}")
 
-    def query_media(self, query_text, collection)
+    def clear_collection(self, collection_name="test_collection"):
+        client = chromadb.Client()
+        if collection_name in [col.name for col in client.list_collections()]:
+            client.delete_collection(name=collection_name)
+            print(f"Collection {collection_name} deleted.")
+        else:
+            print(f"Collection {collection_name} does not exist.")
+
+    def query_media(self, query_text, collection_name="test_collection"):
+        text_features = self.encode_text(query_text).cpu().numpy()
+        client = chromadb.Client()
+        collection = client.get_collection(name=collection_name)
+        results = collection.query(
+            query_embeddings=[text_features],
+            n_results=5
+        )
+        return results
+    
     #Need l2 normalization, per clip's paper
     @staticmethod
     def _l2norm(x, dim=-1, eps=1e-12):
