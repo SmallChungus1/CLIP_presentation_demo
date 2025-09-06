@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 import json
 import requests
 from io import BytesIO
+import validators
 
 load_dotenv()
 
@@ -46,6 +47,7 @@ class ClipInference():
         self.chroma_imagenet_collection = os.getenv("IMAGENET_EMBEDDING_COLLECTION_NAME")
         self.chroma_imagenet_embed_collec = self.chroma_client.get_collection(name=self.chroma_imagenet_collection) 
 
+        print("init clip_inference")
     #Compute image/video embeddings and store them locally in chromadb
     def store_media_embeddings(self, media_dir):
 
@@ -116,7 +118,11 @@ class ClipInference():
 
         #we can pass in url or PIL image object
         if isinstance(image_url_or_obj, str):
-            image = Image.open(BytesIO(requests.get(image_url_or_obj).content))
+            #if url
+            if validators.url(image_url_or_obj):
+                image = Image.open(BytesIO(requests.get(image_url_or_obj).content))
+            else:
+                image = Image.open(image_url_or_obj)
         else:
             image = image_url_or_obj.convert("RGB")
 
