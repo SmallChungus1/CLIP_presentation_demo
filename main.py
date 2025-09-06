@@ -1,9 +1,13 @@
 import streamlit as st
 from clip_inference import ClipInference
 import torch
+import os 
+from dotenv import load_dotenv
+
+load_dotenv()
 
 st.title("CLIP Demo on Classification and Semantic Search")
-collection_name="test_collection"
+collection_name=os.getenv("IMAGE_SEARCH_EMBEDDING_COLLECTION_NAME")
 
 clip_inference = ClipInference(db_collection=collection_name)
 

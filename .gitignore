@@ -2,4 +2,4 @@ clipDemoVenv
 demo_data
 __pycache__
 .env
-test_collection
+chroma_local_db

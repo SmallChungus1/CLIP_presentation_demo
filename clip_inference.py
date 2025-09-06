@@ -6,11 +6,13 @@ import os
 from transformers import CLIPModel, CLIPProcessor, AutoTokenizer
 import chromadb
 from dotenv import load_dotenv
+import json
 
 load_dotenv()
 
 class ClipInference():
-    def __init__(self, model_name="openai/clip-vit-base-patch32", db_collection="test_collection"):
+    #keeping imagenet collection location hidden from the user for now
+    def __init__(self, model_name="openai/clip-vit-base-patch32", db_collection=os.getenv("IMAGE_SEARCH_EMBEDDING_COLLECTION_NAME")):
         if torch.cuda.is_available():
             self.device = torch.device("cuda")
             self.torch_dtype = torch.float16  # fast on CUDA
@@ -33,15 +35,17 @@ class ClipInference():
         self.model.eval()
 
         self.processor = CLIPProcessor.from_pretrained(model_name, cache_dir=os.getenv("CACHE_DIR"))
-        self.chroma_client = chromadb.PersistentClient(path=f"./{db_collection}")
+
+        #chromadb client and collections for image search, imagenet-classification
+        self.chromaDB_client_base_path = "./chroma_local_db"
+        self.chroma_client = chromadb.PersistentClient(path=self.chromaDB_client_base_path)
         self.collection_name = db_collection
+        self.chroma_image_search_collection = self.chroma_client.get_collection(name=db_collection) if db_collection in [col.name for col in self.chroma_client.list_collections()] else self.chroma_client.create_collection(name=db_collection)
+        self.chroma_imagenet_collection = os.getenv("IMAGENET_EMBEDDING_COLLECTION_NAME")
+        self.chroma_imagenet_embed_collec = self.chroma_client.get_collection(name=self.chroma_imagenet_collection) 
 
     #Compute image/video embeddings and store them locally in chromadb
     def store_media_embeddings(self, media_dir):
-        if self.collection_name in [col.name for col in self.chroma_client.list_collections()]:
-            collection = self.chroma_client.get_collection(name=self.collection_name)
-        else:
-            collection = self.chroma_client.create_collection(name=self.collection_name)
 
         for filename in os.listdir(media_dir):
             file_path = os.path.join(media_dir, filename)
@@ -52,7 +56,7 @@ class ClipInference():
                 features = self.encode_video(file_path).cpu().numpy()
             else:
                 continue
-            collection.add(
+            self.chroma_image_search_collection.add(
                 ids=[filename],
                 documents=[file_path],
                 embeddings=[features],
@@ -61,10 +65,36 @@ class ClipInference():
 
         print(f"succesfully stored media embeddings to collection {self.collection_name}")
 
+    def query_media(self, query_text):
+        text_features = self.encode_text(query_text).cpu().numpy()
+        results = self.chroma_image_search_collection.query(
+            query_embeddings=[text_features],
+            n_results=5
+        )
+        return results
+    
+    def store_imagenet_class_embeddings(self, class_list_json):
+
+        with open(class_list_json, "r") as f:
+            class_list = json.load(f)
+
+            for _, cls_name in class_list.items():
+                class_prompt = f"a photo or video of a {cls_name}"
+                class_embed = self.encode_text(class_prompt).cpu().numpy()
+                self.chroma_imagenet_embed_collec.add(
+                    ids=[cls_name],
+                    embeddings=[class_embed])
+        print(f"succesfully stored imagenet class embeddings to collection {self.chroma_imagenet_collection}")
+
     #Image classification function
     def classify_image(self, image_url):
         image_features = self.encode_image(image_url)
-        
+        result = self.chroma_imagenet_embed_collec.query(
+            query_embeddings=[image_features],
+            n_results=1
+        )
+        return result["ids"][0][0]
+
     def clear_collection(self):
         if self.collection_name in [col.name for col in self.chroma_client.list_collections()]:
             self.chroma_client.delete_collection(name=self.collection_name)
@@ -72,15 +102,7 @@ class ClipInference():
         else:
             print(f"Collection {self.collection_name} does not exist.")
 
-    def query_media(self, query_text):
-        text_features = self.encode_text(query_text).cpu().numpy()
-        collection = self.chroma_client.get_collection(name=self.collection_name)
-        results = collection.query(
-            query_embeddings=[text_features],
-            n_results=5
-        )
-        return results
-    
+
     #Need l2 normalization, per clip's paper
     @staticmethod
     def _l2norm(x, dim=-1, eps=1e-12):
