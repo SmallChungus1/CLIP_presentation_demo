@@ -51,6 +51,9 @@ class ClipInference():
     #Compute image/video embeddings and store them locally in chromadb
     def store_media_embeddings(self, media_dir):
 
+        if self.collection_name not in [col.name for col in self.chroma_client.list_collections()]:
+            self.chroma_image_search_collection = self.chroma_client.create_collection(name=self.collection_name)
+        
         for filename in os.listdir(media_dir):
             file_path = os.path.join(media_dir, filename)
             if filename.lower().endswith(('.png', '.jpg', '.jpeg')):
@@ -60,6 +63,7 @@ class ClipInference():
                 features = self.encode_video(file_path).cpu().numpy()
             else:
                 continue
+
             self.chroma_image_search_collection.add(
                 ids=[filename],
                 documents=[file_path],
