@@ -1,5 +1,4 @@
 clipDemoVenv
-demo_data
 __pycache__
 .env
 chroma_local_db

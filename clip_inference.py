@@ -88,7 +88,7 @@ class ClipInference():
             class_list = json.load(f)
 
             for _, cls_name in class_list.items():
-                class_prompt = f"a photo or video of a {cls_name}"
+                class_prompt = f"a photo of a {cls_name}"
                 class_embed = self.encode_text(class_prompt).cpu().numpy()
                 self.chroma_imagenet_embed_collec.add(
                     ids=[cls_name],

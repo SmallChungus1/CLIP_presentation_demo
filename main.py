@@ -16,7 +16,7 @@ collection_name=os.getenv("IMAGE_SEARCH_EMBEDDING_COLLECTION_NAME")
 if "clip_inference" not in state:
     state.clip_inference = ClipInference(db_collection=collection_name)
 
-st.subheader("Semantic Search Demo")
+st.subheader("Image Retrieval Demo")
 
 if st.button("Clear vector DB"):
         state.clip_inference.clear_collection()
