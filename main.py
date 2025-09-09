@@ -52,3 +52,12 @@ if st.button("Classify Image"):
     except Exception as e:
         st.error(f"Error processing image: {e}")
 
+
+st.write("image links to try: ")
+st.write("1. https://static01.nyt.com/images/2022/09/06/science/00SCI-RECORDHAIL1/merlin_211674534_2ed74ba7-5690-4141-b0fc-37e5fd3dae70-articleLarge.jpg?quality=75&auto=webp&disable=upscale")
+st.write("2. https://scitechdaily.com/images/Tsunami-Stormy-Seas.jpg")
+st.write("3. https://assets1.storebrands.com/images/v/max_width_1440/sb/s3fs-public/298e882e95b5913ef49a.jpg")
+st.write("4. https://www.indianhealthyrecipes.com/wp-content/uploads/2021/12/dosa-recipe.jpg")
+st.write("5. https://it.wustl.edu/app/uploads/2023/07/TPDA-7849_0200.2-optim.jpg")
+st.write("7. https://cloudfront-us-east-1.images.arcpublishing.com/advancelocal/XA2FFLXGOZBYJDI2GRYVRAIAQQ.jpg")
+
