@@ -84,6 +84,9 @@ class ClipInference():
     
     def store_imagenet_class_embeddings(self, class_list_json):
 
+        if self.chroma_imagenet_collection not in [col.name for col in self.chroma_client.list_collections()]:
+            self.chroma_imagenet_embed_collec = self.chroma_client.create_collection(name=self.chroma_imagenet_collection)
+            
         with open(class_list_json, "r") as f:
             class_list = json.load(f)
 
@@ -94,6 +97,13 @@ class ClipInference():
                     ids=[cls_name],
                     embeddings=[class_embed])
         print(f"succesfully stored imagenet class embeddings to collection {self.chroma_imagenet_collection}")
+
+    def clear_imagenet_collection(self):
+        if self.chroma_imagenet_collection in [col.name for col in self.chroma_client.list_collections()]:
+            self.chroma_client.delete_collection(name=self.chroma_imagenet_collection)
+            print(f"Collection {self.chroma_imagenet_collection} deleted.")
+        else:
+            print(f"Collection {self.chroma_imagenet_collection} does not exist.")
 
     #Image classification function
     def classify_image(self, image_url):
